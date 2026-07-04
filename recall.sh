@@ -41,18 +41,14 @@ normalize() {
     | tr '\n' ' ' | sed -e 's/  */ /g' -e 's/^ //' -e 's/ $//'
 }
 
-# The shared gateway lives on the host; its GPU flag mirrors Claude's (Intel iGPU via Vulkan).
-GPU_FLAG="/root/.claude/qmd/.gpu"
-
+# deep = vec-only ALWAYS. On this box the benchmark verdict (memory: qmd-retrieval-benchmark)
+# is that plain vector search beats the expansion+rerank hybrid AND is ~200x faster — the 1.7B
+# expansion + reranker are slow even on the iGPU. So we do NOT gate deep behind a GPU flag;
+# full hybrid stays opt-in via `-m query` for the rare case it's wanted.
 case "$MODE" in
   deep)
-    if [ -f "$GPU_FLAG" ]; then
-      TIMEOUT=60; DEFN=6; [ -z "$MINSCORE" ] && MINSCORE=0
-      CMD=(query "$QUERY" --format json)
-    else
-      TIMEOUT=30; DEFN=6; [ -z "$MINSCORE" ] && MINSCORE=0.15
-      CMD=(query "vec: $QUERY" --no-rerank --format json)
-    fi ;;
+    TIMEOUT=40; DEFN=6; [ -z "$MINSCORE" ] && MINSCORE=0.15
+    CMD=(query "vec: $QUERY" --no-rerank --format json) ;;
   query)
     TIMEOUT=200; DEFN=6; [ -z "$MINSCORE" ] && MINSCORE=0
     CMD=(query "$QUERY" --format json) ;;
